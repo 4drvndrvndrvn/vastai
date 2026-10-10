@@ -1,0 +1,2 @@
+# Keep LF endings so the shell script and Python run as-is on a Linux VPS.
+* text=auto eol=lf

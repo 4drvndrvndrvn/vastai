@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Studio Remote</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%234c8dff'/%3E%3Cstop offset='1' stop-color='%238b5cf6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='5' y='5' width='22' height='22' rx='6' transform='rotate(14 16 16)' fill='url(%23g)'/%3E%3Crect x='12.5' y='12.5' width='7' height='7' rx='1.6' transform='rotate(14 16 16)' fill='%230a0c11'/%3E%3C/svg%3E">
+  <script src="/static/theme.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand">
+        <svg class="logo" viewBox="0 0 32 32" aria-hidden="true">
+          <defs>
+            <linearGradient id="logo-grad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#4c8dff"/>
+              <stop offset="1" stop-color="#8b5cf6"/>
+            </linearGradient>
+          </defs>
+          <rect x="5" y="5" width="22" height="22" rx="6" transform="rotate(14 16 16)" fill="url(#logo-grad)"/>
+          <rect class="logo-hole" x="12.5" y="12.5" width="7" height="7" rx="1.6" transform="rotate(14 16 16)"/>
+        </svg>
+        <span class="brand-name">Studio Remote</span>
+      </div>
+
+      <button class="machine-pill" id="machine-pill" type="button" title="Machine details">
+        <span class="dot" id="pill-dot" data-status="none"></span>
+        <span class="pill-main" id="pill-main">Connecting…</span>
+        <span class="pill-sub" id="pill-sub"></span>
+      </button>
+
+      <div class="studio-controls" id="studio-controls" hidden>
+        <label class="select-wrap" title="Connected Studio">
+          <span data-icon="monitor"></span>
+          <select id="studio-select" aria-label="Connected Studio"></select>
+        </label>
+        <span class="mode-badge" id="mode-badge" data-mode="edit">Edit</span>
+        <button class="btn btn-play" id="btn-play" type="button" title="Start a playtest" aria-label="Play"><span data-icon="play"></span><span class="btn-label">Play</span></button>
+        <button class="btn btn-stop" id="btn-stop" type="button" title="Stop the playtest" aria-label="Stop"><span data-icon="stop"></span><span class="btn-label">Stop</span></button>
+      </div>
+
+      <div class="topbar-spacer"></div>
+      <button class="btn btn-ghost" id="btn-desktop" type="button" hidden title="Open the machine's desktop in a new tab"><span data-icon="external"></span><span class="hide-sm">Desktop</span></button>
+      <button class="icon-btn" id="btn-palette" type="button" title="Command palette (Ctrl+K)" aria-label="Command palette"><span data-icon="command"></span></button>
+      <button class="icon-btn" id="btn-theme" type="button" title="Switch light / dark" aria-label="Switch theme"><span data-icon="theme"></span></button>
+    </header>
+
+    <main id="views">
+      <!-- Loading -->
+      <section class="view active" id="view-loading">
+        <div class="center-state"><span class="spinner lg"></span><p>Connecting to Studio Remote…</p></div>
+      </section>
+
+      <!-- No machine: pick and rent one -->
+      <section class="view" id="view-rent">
+        <div class="page">
+          <div class="hero">
+            <div>
+              <div class="eyebrow">Roblox Studio · Vast.ai · MCP</div>
+              <h1>Run Roblox Studio in the cloud, <span class="grad">drive it from anywhere</span></h1>
+              <p>Rent a fast machine, install Studio with TuxBlox and open its MCP server. Then build from this page or from any MCP client.</p>
+            </div>
+            <div class="hero-stat">
+              <span class="muted">Vast credit</span>
+              <strong id="rent-credit">—</strong>
+            </div>
+          </div>
+
+          <div class="note warn" id="rent-note" hidden></div>
+
+          <div class="card">
+            <div class="card-head">
+              <h2>Pick a machine</h2>
+              <div class="filters">
+                <label>Max price
+                  <span class="affix"><span>$</span><input id="f-price" type="number" min="0.05" max="5" step="0.05" value="0.6"><span>/hr</span></span>
+                </label>
+                <label>CPU
+                  <select id="f-cpu">
+                    <option value="2600">Any modern</option>
+                    <option value="3000" selected>Fast (recommended)</option>
+                    <option value="3800">Very fast</option>
+                    <option value="4300">Fastest</option>
+                  </select>
+                </label>
+                <label>GPU <input id="f-gpu" class="input" placeholder="Any, e.g. RTX 4090" size="16"></label>
+                <button class="icon-btn" id="f-refresh" type="button" title="Search again" aria-label="Search again"><span data-icon="refresh"></span></button>
+              </div>
+            </div>
+            <div class="offers" id="offers"></div>
+            <div class="card-foot">
+              <p class="muted small foot-text">Each machine is checked as it starts. If one can't be reached or set up in time, it's destroyed and the next one is tried (up to 5). Billing runs until you destroy the machine.</p>
+              <button class="btn btn-primary btn-lg" id="rent-best" type="button"><span data-icon="bolt"></span>Rent the cheapest and set it up</button>
+            </div>
+          </div>
+
+          <div class="feature-grid">
+            <div class="feature"><span data-icon="monitor"></span><div><strong>Full desktop</strong><p>Studio runs on a KDE desktop you can open in your browser.</p></div></div>
+            <div class="feature"><span data-icon="code"></span><div><strong>Luau &amp; scripts</strong><p>Run code, read and edit scripts, and watch Output live.</p></div></div>
+            <div class="feature"><span data-icon="wrench"></span><div><strong>Every MCP tool</strong><p>Explorer, viewport captures, playtests, assets and more.</p></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- A long operation (rent / setup / destroy) -->
+      <section class="view" id="view-job">
+        <div class="page narrow">
+          <div class="card job">
+            <div class="job-head">
+              <div>
+                <h2 id="job-title">Working…</h2>
+                <div class="muted small" id="job-meta"></div>
+              </div>
+              <span class="chip" id="job-status">Running</span>
+            </div>
+            <ol class="stepper" id="job-steps"></ol>
+            <div class="job-notes" id="job-notes"></div>
+            <div class="terminal-head">
+              <span>Log</span>
+              <button class="btn btn-ghost btn-sm" id="job-copy" type="button"><span data-icon="copy"></span>Copy</button>
+            </div>
+            <div class="terminal" id="job-log" tabindex="0"></div>
+            <div class="job-actions">
+              <button class="btn" id="job-stop" type="button">Stop</button>
+              <div class="toolbar-spacer"></div>
+              <button class="btn btn-danger" id="job-destroy" type="button" hidden><span data-icon="trash"></span>Destroy machine</button>
+              <button class="btn" id="job-retry" type="button" hidden><span data-icon="refresh"></span>Try again</button>
+              <button class="btn btn-primary" id="job-dismiss" type="button" hidden>Continue</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Machine exists but is not running yet -->
+      <section class="view" id="view-starting">
+        <div class="page narrow">
+          <div class="card pad center-card">
+            <span class="spinner lg"></span>
+            <h2 id="starting-title">The machine is starting</h2>
+            <p class="muted" id="starting-msg"></p>
+            <div class="row-actions">
+              <button class="btn btn-danger" data-action="destroy" type="button"><span data-icon="trash"></span>Destroy machine</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Machine running, Studio not set up -->
+      <section class="view" id="view-setup">
+        <div class="page narrow">
+          <div class="card pad center-card">
+            <div class="big-icon"><span data-icon="server"></span></div>
+            <h2>The machine is running, but Studio isn't set up yet</h2>
+            <p class="muted">Setup installs TuxBlox, starts Roblox Studio and publishes its MCP server. It takes about 5 minutes.</p>
+            <div class="row-actions">
+              <button class="btn btn-primary btn-lg" data-setup="all" type="button"><span data-icon="bolt"></span>Set up Studio</button>
+              <button class="btn" id="setup-refresh" type="button" title="Already set up? Re-read the access token and ports over SSH"><span data-icon="refresh"></span>Refresh connection</button>
+              <button class="btn btn-danger" data-action="destroy" type="button"><span data-icon="trash"></span>Destroy</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Studio running: sign in and enable MCP -->
+      <section class="view" id="view-connect">
+        <div class="page wide">
+          <div class="connect">
+            <div class="card pad connect-steps">
+              <div class="eyebrow">Almost there</div>
+              <h2>Connect Roblox Studio</h2>
+              <p class="muted">Studio is running on the machine. Finish these steps on its desktop and this page switches to the editor as soon as Studio answers.</p>
+              <ol class="checklist">
+                <li>
+                  <div><strong>Open the remote desktop</strong><span class="muted">It opens in a new tab.</span></div>
+                  <button class="btn btn-primary" id="connect-desktop" type="button"><span data-icon="external"></span>Open desktop</button>
+                </li>
+                <li><div><strong id="connect-signin-title">Sign in to Roblox Studio</strong><span class="muted" id="connect-signin-text">Use the login window that's already open.</span></div></li>
+                <li><div><strong>Open a place</strong><span class="muted">Baseplate is fine.</span></div></li>
+                <li><div><strong>Enable the MCP server</strong><span class="muted">Assistant → ⋯ → Manage MCP Servers → turn on “Enable Studio as MCP server”.</span></div></li>
+              </ol>
+              <div class="waiting">
+                <span class="spinner"></span>
+                <div><strong id="connect-status">Waiting for Studio…</strong><div class="muted small" id="connect-substatus"></div></div>
+              </div>
+              <details class="trouble">
+                <summary>Something not working?</summary>
+                <div class="trouble-actions">
+                  <button class="btn" data-setup="launch" type="button">Relaunch Studio</button>
+                  <button class="btn" data-setup="bridge" type="button">Repair MCP bridge</button>
+                  <button class="btn" id="connect-refresh" type="button">Refresh connection</button>
+                </div>
+                <div class="muted small">Last reply from the MCP server:</div>
+                <pre class="raw" id="connect-raw">—</pre>
+              </details>
+            </div>
+            <div class="card desktop-card">
+              <div class="card-head">
+                <h2>Desktop preview</h2>
+                <div class="head-actions">
+                  <label class="switch"><input type="checkbox" id="shot-auto" checked><span></span>Live</label>
+                  <button class="icon-btn" id="shot-refresh" type="button" title="Refresh" aria-label="Refresh preview"><span data-icon="refresh"></span></button>
+                </div>
+              </div>
+              <button class="desktop-shot" id="connect-shot" type="button" title="Open the desktop">
+                <img alt="The machine's desktop" id="connect-shot-img" hidden>
+                <span class="shot-empty" id="connect-shot-empty"><span class="spinner"></span>Capturing the desktop…</span>
+              </button>
+              <div class="muted small shot-meta" id="connect-shot-meta"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- The editor -->
+      <section class="view view-ide" id="view-ide">
+        <div class="ide" id="ide">
+          <aside class="pane pane-explorer" id="pane-explorer">
+            <div class="pane-head">
+              <span class="pane-title">Explorer</span>
+              <select id="explorer-dm" class="select-sm" title="Data model" aria-label="Data model"></select>
+              <button class="icon-btn" id="explorer-refresh" type="button" title="Reload" aria-label="Reload explorer"><span data-icon="refresh"></span></button>
+            </div>
+            <form class="search-box" id="explorer-search-form">
+              <span data-icon="search"></span>
+              <input id="explorer-search" placeholder="Find instances" autocomplete="off" spellcheck="false">
+              <button class="icon-btn tiny" id="explorer-search-clear" type="button" hidden aria-label="Clear search"><span data-icon="close"></span></button>
+            </form>
+            <div class="tree" id="tree" tabindex="0" role="tree" aria-label="Game tree"></div>
+          </aside>
+          <div class="splitter v" data-split="left" role="separator" aria-orientation="vertical"></div>
+
+          <section class="pane pane-center">
+            <nav class="tabs" id="center-tabs">
+              <button class="icon-btn only-narrow" id="toggle-explorer" type="button" title="Explorer" aria-label="Show explorer"><span data-icon="tree"></span></button>
+              <button data-tab="viewport" class="active" type="button"><span data-icon="camera"></span>Viewport</button>
+              <button data-tab="luau" type="button"><span data-icon="code"></span>Luau</button>
+              <button data-tab="script" type="button"><span data-icon="file"></span>Scripts</button>
+              <button data-tab="tools" type="button"><span data-icon="wrench"></span>Tools</button>
+              <div class="tabs-spacer"></div>
+              <button class="icon-btn only-narrow" id="toggle-props" type="button" title="Properties" aria-label="Show properties"><span data-icon="list"></span></button>
+            </nav>
+            <div class="tab-panels">
+              <!-- Viewport -->
+              <div class="tab-panel active" data-panel="viewport">
+                <div class="toolbar">
+                  <button class="btn btn-primary" id="vp-capture" type="button"><span data-icon="camera"></span>Capture</button>
+                  <label class="inline">Auto
+                    <select id="vp-auto">
+                      <option value="0">Off</option>
+                      <option value="3">3 s</option>
+                      <option value="5">5 s</option>
+                      <option value="10">10 s</option>
+                    </select>
+                  </label>
+                  <button class="btn" id="vp-look" type="button" disabled title="Point the camera at the selected instance"><span data-icon="target"></span>Look at selection</button>
+                  <button class="btn btn-ghost" id="vp-camera-toggle" type="button" aria-expanded="false">Camera…</button>
+                  <div class="toolbar-spacer"></div>
+                  <span class="muted small" id="vp-meta"></span>
+                  <button class="icon-btn" id="vp-download" type="button" disabled title="Download image" aria-label="Download image"><span data-icon="download"></span></button>
+                </div>
+                <form class="camera-row" id="vp-camera" hidden>
+                  <label>Camera at <input class="input mono" id="vp-pos" placeholder="x, y, z" autocomplete="off"></label>
+                  <label>Looking at <input class="input mono" id="vp-look-at" placeholder="x, y, z" autocomplete="off"></label>
+                  <button class="btn" type="submit">Capture from here</button>
+                </form>
+                <div class="viewport" id="viewport">
+                  <div class="empty-state">
+                    <div class="big-icon"><span data-icon="camera"></span></div>
+                    <strong>See what Studio sees</strong>
+                    <span class="muted">Capture the edit viewport, or turn on Auto for a live view.</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Luau -->
+              <div class="tab-panel" data-panel="luau">
+                <div class="toolbar">
+                  <select id="luau-dm" title="Run in this data model" aria-label="Data model"></select>
+                  <button class="btn btn-primary" id="luau-run" type="button"><span data-icon="play"></span>Run<kbd>Ctrl ↵</kbd></button>
+                  <select id="luau-snippets" aria-label="Insert a snippet"><option value="">Snippets…</option></select>
+                  <div class="toolbar-spacer"></div>
+                  <button class="btn btn-ghost" id="luau-clear" type="button">Clear results</button>
+                </div>
+                <div class="luau-split">
+                  <div class="editor-host" id="luau-editor"></div>
+                  <div class="runs" id="luau-runs"></div>
+                </div>
+              </div>
+
+              <!-- Scripts -->
+              <div class="tab-panel" data-panel="script">
+                <div class="scripts">
+                  <aside class="scripts-side">
+                    <form class="search-box" id="script-find-form">
+                      <span data-icon="search"></span>
+                      <input id="script-find" placeholder="Find a script by name" autocomplete="off" spellcheck="false">
+                    </form>
+                    <form class="search-box" id="script-grep-form">
+                      <span data-icon="text"></span>
+                      <input id="script-grep" placeholder="Search inside scripts" autocomplete="off" spellcheck="false">
+                    </form>
+                    <div class="side-title" id="script-results-title" hidden>Results</div>
+                    <div class="list" id="script-results"></div>
+                    <div class="side-title">Recent</div>
+                    <div class="list" id="script-recent"></div>
+                    <button class="btn btn-ghost new-script" id="script-new" type="button"><span data-icon="plus"></span>New script</button>
+                  </aside>
+                  <section class="script-main">
+                    <div class="toolbar">
+                      <span class="script-path" id="script-path">No script open</span>
+                      <span class="badge warn" id="script-dirty" hidden>Unsaved</span>
+                      <span class="badge" id="script-ro" hidden>Read-only</span>
+                      <div class="toolbar-spacer"></div>
+                      <button class="btn" id="script-reload" type="button" disabled><span data-icon="refresh"></span>Reload</button>
+                      <button class="btn btn-primary" id="script-save" type="button" disabled>Save<kbd>Ctrl S</kbd></button>
+                    </div>
+                    <div class="editor-host" id="script-editor">
+                      <div class="empty-state overlay" id="script-empty">
+                        <div class="big-icon"><span data-icon="file"></span></div>
+                        <strong>Open a script</strong>
+                        <span class="muted">Double-click a script in the Explorer, or search on the left.</span>
+                      </div>
+                    </div>
+                  </section>
+                </div>
+              </div>
+
+              <!-- Tools -->
+              <div class="tab-panel" data-panel="tools">
+                <div class="tools">
+                  <aside class="tools-side">
+                    <div class="search-box">
+                      <span data-icon="search"></span>
+                      <input id="tool-filter" placeholder="Filter tools" autocomplete="off" spellcheck="false">
+                    </div>
+                    <div class="list" id="tool-list"></div>
+                  </aside>
+                  <section class="tool-main" id="tool-main"></section>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <div class="splitter v" data-split="right" role="separator" aria-orientation="vertical"></div>
+          <aside class="pane pane-props" id="pane-props">
+            <div class="pane-head">
+              <span class="pane-title">Properties</span>
+              <button class="icon-btn" id="props-refresh" type="button" title="Refresh" aria-label="Refresh properties"><span data-icon="refresh"></span></button>
+            </div>
+            <div class="props" id="props"></div>
+          </aside>
+
+          <div class="splitter h" data-split="bottom" role="separator" aria-orientation="horizontal"></div>
+          <section class="pane pane-bottom">
+            <nav class="tabs small" id="bottom-tabs">
+              <button data-tab="output" class="active" type="button">Output<span class="count" id="output-count"></span></button>
+              <button data-tab="activity" type="button">Activity<span class="count" id="activity-count"></span></button>
+              <div class="tabs-spacer"></div>
+              <div class="bottom-tools" data-for="output">
+                <div class="search-box slim"><span data-icon="search"></span><input id="output-filter" placeholder="Filter output" autocomplete="off"></div>
+                <div class="seg" id="output-levels">
+                  <button type="button" data-level="info" class="on">Info</button>
+                  <button type="button" data-level="warn" class="on">Warn</button>
+                  <button type="button" data-level="error" class="on">Error</button>
+                </div>
+                <button class="icon-btn" id="output-pause" type="button" title="Pause live output" aria-label="Pause live output"><span data-icon="pause"></span></button>
+                <button class="icon-btn" id="output-clear" type="button" title="Clear" aria-label="Clear output"><span data-icon="trash"></span></button>
+              </div>
+              <div class="bottom-tools" data-for="activity" hidden>
+                <button class="icon-btn" id="activity-clear" type="button" title="Clear" aria-label="Clear activity"><span data-icon="trash"></span></button>
+              </div>
+            </nav>
+            <div class="tab-panels">
+              <div class="tab-panel active console" data-panel="output" id="output"></div>
+              <div class="tab-panel activity" data-panel="activity" id="activity"></div>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <aside class="drawer" id="drawer" aria-label="Machine details" aria-hidden="true">
+    <div class="drawer-head">
+      <h2>Machine</h2>
+      <button class="icon-btn" id="drawer-close" type="button" aria-label="Close"><span data-icon="close"></span></button>
+    </div>
+    <div class="drawer-body" id="drawer-body"></div>
+  </aside>
+  <div class="scrim" id="scrim" hidden></div>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+  <div class="modal-backdrop" id="modal" hidden></div>
+
+  <div class="palette-backdrop" id="palette" hidden>
+    <div class="palette" role="dialog" aria-label="Command palette">
+      <div class="palette-input"><span data-icon="search"></span><input id="palette-input" placeholder="Type a command or tool name…" autocomplete="off" spellcheck="false"></div>
+      <div class="palette-list" id="palette-list" role="listbox"></div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/lua/lua.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
+  <script type="module" src="/static/app.js"></script>
+</body>
+</html>

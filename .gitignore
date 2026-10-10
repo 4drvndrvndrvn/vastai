@@ -1,0 +1,11 @@
+# Secrets: the Vast API key and the Roblox login. Copy .env.example to .env instead.
+.env
+.env.*
+!.env.example
+
+# Per-machine state (which instance you rented, its MCP token, SSH host keys)
+.vast-roblox-state.json
+.vast_known_hosts
+mcp-client-config.json
+.vast_bad_machines.json
+__pycache__/
